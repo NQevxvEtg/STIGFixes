@@ -1,10 +1,40 @@
----
-- name: Apply STIG Remediation Scripts
+- name: Identify reachable hosts
   hosts: all
+  become: true  
   gather_facts: false
+  strategy: linear
   vars_files:
     - ../../vaults/rhel8_vault.yml
   vars:
     ansible_tmp_dir: /var/ansible_tmp
+
+  tasks:
+    - block:
+        - name: Quick check for SSH connection readiness
+          ansible.builtin.wait_for_connection:
+            timeout: 5 # Fail fast if no SSH connection
+          delegate_to: "{{ inventory_hostname }}" # Ensure this runs against the target host
+
+        - name: Add device to general 'reachable' group
+          ansible.builtin.group_by:
+            key: "reachable"
+            # No need for ansible_hostname here for the general group, it's just 'reachable'
+
+      rescue:
+        - name: Mark unreachable host
+          ansible.builtin.debug:
+            msg: "Host {{ inventory_hostname }} is unreachable within the initial check. Skipping."
+          # No need to create a group for unreachable. The absence from 'reachable' implies unreachability.
+
+- name: Apply STIG Fixes
+  ignore_unreachable: yes
+  hosts: reachable
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../vaults/rhel8_vault.yml
+  vars:
+    ansible_remote_tmp: /var/ansible_tmp
+
   roles:
     - rhel8  # <-- Change to switch 
