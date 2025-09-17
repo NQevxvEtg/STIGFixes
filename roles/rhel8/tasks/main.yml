@@ -22,9 +22,6 @@
     cmd: "find {{ stig_temp_dir.path }} -name '{{ item }}' -exec bash {} \\;"
     warn: false
   loop: "{{ stig_scripts }}"
-  register: script_output
-  changed_when: script_output is changed
-  failed_when: script_output.rc != 0
   tags:
     - "stig_remediation"
 
