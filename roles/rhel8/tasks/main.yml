@@ -20,7 +20,6 @@
   become: true
   ansible.builtin.shell:
     cmd: "find {{ stig_temp_dir.path }} -name '{{ item }}' -exec bash {} \\;"
-    warn: false
   loop: "{{ stig_scripts }}"
   tags:
     - "stig_remediation"
