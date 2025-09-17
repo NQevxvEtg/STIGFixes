@@ -7,25 +7,28 @@
   register: stig_temp_dir
   tags: always
 
-- name: Copy all STIG scripts for RHEL8 to the remote host
-  ansible.builtin.copy:
-    # Copy the entire RHEL8 directory, which contains all CAT categories
+- name: Sync all STIG scripts for RHEL8 to the remote host
+  ansible.builtin.synchronize:
     src: "OS/RHEL8/"
     dest: "{{ stig_temp_dir.path }}/"
-    mode: '0755'
+    mode: push
+    archive: yes
+  # The synchronize module must be delegated to the local host
+  # to be executed from the Ansible control machine.
+  delegate_to: "{{ inventory_hostname }}"
   tags: always
 
 - name: Execute STIG remediation scripts
   become: true # Use sudo
   ansible.builtin.shell:
-    # Find the script inside the copied directory structure and execute it.
+    # The find command ensures we find the correct script regardless of its CAT category.
     cmd: "find {{ stig_temp_dir.path }} -name '{{ item }}' -exec bash {} \\;"
     warn: false
   loop: "{{ stig_scripts }}"
   register: script_output
   changed_when: script_output.rc != 0
   tags:
-    - "stig_remediation" # The fix: a static, generic tag.
+    - "stig_remediation"
 
 - name: Clean up the temporary directory
   ansible.builtin.file:
