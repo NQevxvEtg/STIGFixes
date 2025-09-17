@@ -25,7 +25,7 @@
   register: script_output
   changed_when: script_output.rc != 0
   tags:
-    - "stig_{{ item | splitext | first }}"
+    - "stig_remediation" # The fix: a static, generic tag.
 
 - name: Clean up the temporary directory
   ansible.builtin.file:
