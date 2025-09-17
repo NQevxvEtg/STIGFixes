@@ -13,20 +13,18 @@
     dest: "{{ stig_temp_dir.path }}/"
     mode: push
     archive: yes
-  # The synchronize module must be delegated to the local host
-  # to be executed from the Ansible control machine.
   delegate_to: "{{ inventory_hostname }}"
   tags: always
 
 - name: Execute STIG remediation scripts
-  become: true # Use sudo
+  become: true
   ansible.builtin.shell:
-    # The find command ensures we find the correct script regardless of its CAT category.
     cmd: "find {{ stig_temp_dir.path }} -name '{{ item }}' -exec bash {} \\;"
     warn: false
   loop: "{{ stig_scripts }}"
   register: script_output
-  changed_when: script_output.rc != 0
+  changed_when: script_output is changed
+  failed_when: script_output.rc != 0
   tags:
     - "stig_remediation"
 
