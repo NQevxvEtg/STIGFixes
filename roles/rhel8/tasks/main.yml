@@ -7,37 +7,25 @@
   register: stig_temp_dir
   tags: always
 
-- name: Define possible script locations
-  ansible.builtin.set_fact:
-    # **FIX:** Paths are now relative to the STIGFixes directory
-    script_search_paths:
-      - "OS/RHEL8/CATI/"
-      - "OS/RHEL8/CATII/"
-      - "OS/RHEL8/CATIII/"
+- name: Copy all STIG scripts for RHEL8 to the remote host
+  ansible.builtin.copy:
+    # Copy the entire RHEL8 directory, which contains all CAT categories
+    src: "OS/RHEL8/"
+    dest: "{{ stig_temp_dir.path }}/"
+    mode: '0755'
   tags: always
 
-- name: Copy and execute STIG remediation scripts
+- name: Execute STIG remediation scripts
   become: true # Use sudo
-  block:
-    - name: "Find and copy {{ item }} to remote host"
-      ansible.builtin.copy:
-        src: "{{ lookup('first_found', { 'files': possible_paths, 'skip': true }) }}"
-        dest: "{{ stig_temp_dir.path }}/{{ item }}"
-        mode: '0755'
-      loop: "{{ stig_scripts }}"
-      vars:
-        possible_paths: "{{ script_search_paths | product([item]) | map('join') | list }}"
-      tags:
-        - always
-
-    - name: "Run STIG script: {{ item }}"
-      ansible.builtin.command:
-        cmd: "bash {{ stig_temp_dir.path }}/{{ item }}"
-      loop: "{{ stig_scripts }}"
-      register: script_output
-      changed_when: script_output.rc != 0
-      tags:
-        - "stig_{{ item | splitext | first }}"
+  ansible.builtin.shell:
+    # Find the script inside the copied directory structure and execute it.
+    cmd: "find {{ stig_temp_dir.path }} -name '{{ item }}' -exec bash {} \\;"
+    warn: false
+  loop: "{{ stig_scripts }}"
+  register: script_output
+  changed_when: script_output.rc != 0
+  tags:
+    - "stig_{{ item | splitext | first }}"
 
 - name: Clean up the temporary directory
   ansible.builtin.file:
